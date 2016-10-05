@@ -1,0 +1,387 @@
+load model-checker
+
+fmod BOLSA is
+     pr NAT .
+     sort Bolsa .
+     
+     op [_,_,_] : Nat Nat Nat -> Bolsa [ctor] .
+
+endfm
+
+
+load full-maude
+ 
+(omod PERSONA is
+     pr BOLSA .
+     pr STRING .
+     pr NAT .
+     pr CONFIGURATION .
+     pr QID .
+
+     subsort Qid < Oid .
+
+     class Persona | nombre : String, 
+     	   	     edad : Nat, 
+		     numCopas : Nat,  
+		     vip : Bool .
+     class Bebedor | bolsa : Bolsa .
+     
+     subclass Bebedor < Persona .
+
+     vars Id1 Id2 : Oid .
+     var V : Bool .
+     var Attr : AttributeSet .
+     vars E C : Nat .
+     var S : String .
+     var C1 : Configuration .
+     
+     op esVIP : Configuration -> Bool .
+     eq esVIP (< Id1 : Persona | nombre : S , edad : E , numCopas : C , vip : V > C1) = V .
+
+endom)
+
+(omod COLAPERSONA is 
+     pr PERSONA .
+     pr NAT . 
+     pr CONFIGURATION .
+     pr BOOL .
+
+     sort ColaPersona .
+
+     subsort Object < ColaPersona .
+     subsort ColaPersona < Configuration .
+     vars P1 P2 : Object .
+     var Ps : ColaPersona .
+
+
+     vars Id1 Id2 : Oid .
+     var V : Bool .
+     var Attr : AttributeSet .
+     vars E C : Nat .
+     var S : String .
+     var C1 : Configuration .
+     var Bol : Bolsa .
+     op cv : -> ColaPersona [ctor] . 
+     op _!_ : ColaPersona ColaPersona -> ColaPersona [ctor assoc id: cv] .
+
+     op dequeue : ColaPersona -> ColaPersona .
+     eq dequeue(< Id1 : Bebedor | nombre : S , edad : E , numCopas : C
+     , vip : V, bolsa : Bol > ! Ps) = Ps .
+
+     op first : ColaPersona -> Object .
+     eq first(P1 ! Ps) = P1 .
+
+     op enqueue : ColaPersona Object -> ColaPersona .
+     eq enqueue(cv,P2) = P2 .
+     ceq enqueue(Ps ! P1,P2) = enqueue(Ps,P2) ! P1 
+     if not(esVIP(P1)) and esVIP(P2) .
+     ceq enqueue(Ps ! P1,P2) = (Ps ! P1) ! P2 
+     if not(esVIP(P2)) or esVIP(P1) .
+     
+     op buscar : ColaPersona String -> Bool .
+     eq buscar(cv, S) = false .
+      eq buscar(< Id1 : Bebedor | nombre : S , edad : E , numCopas : C
+     , vip : V, bolsa : Bol > ! Ps, S) = true .
+     eq buscar(P1 ! Ps, S) = buscar(Ps, S) [owise] .
+endom)
+
+ (omod LOCAL is
+     pr STRING .
+     pr PERSONA .
+     pr NAT .
+     pr CONFIGURATION .
+     pr QID .
+
+     subsort Qid < Oid .
+     
+     class Local | aforo : Nat,
+     	   	   bailando : Configuration, 
+     	   	   alcohol : Nat,
+		   refrescos : Nat,
+		   manager : Object .
+
+endom)
+
+(omod NOCHE is
+     pr STRING .
+     pr QID .
+     pr COLAPERSONA .
+     pr LOCAL .  
+     pr NAT . 
+     pr CONFIGURATION .   
+
+     subsort Qid < Oid .
+     class Noche | botellon : Configuration, 
+     	   	   esperando : ColaPersona,
+     		   local : Configuration .        
+
+     vars Id1 Id2 Id3 : Oid .
+     vars A A2 R R2 H H2 Cs : Nat .
+     var Conf : Configuration .
+     var Cola : ColaPersona .
+     var B : Object .
+     var N : String .
+     var V : Bool .
+     vars P P2 : Object .
+
+     op numElem : Configuration -> Nat .
+     eq numElem(P Conf) = 1 + numElem(Conf) .
+     eq numElem(B Conf) = 1 + numElem(Conf) .
+     eq numElem(none) = 0 .
+
+     crl [alcohol-botellon] :
+     	 < Id1 : Noche | botellon :
+           (< Id2 : Bebedor | bolsa : [A,R,H], numCopas : Cs > Conf) >
+     	 => < Id1 : Noche | botellon : 
+           (< Id2 : Bebedor | bolsa : [sd(A,1),sd(R,1),sd(H,1)],
+     	                      numCopas : (Cs + 1) > Conf) > 
+     if A > 0 and R > 0 and H > 0 .
+
+     crl [refresco-botellon] :
+	 < Id1 : Noche | botellon : (< Id2 : Bebedor | bolsa : [A,R,H] > Conf) >
+         => < Id1 : Noche | botellon : (< Id2 : Bebedor | 
+                bolsa : [A,sd(R,1),sd(H,1)] > Conf) > 
+      if R > 0 and H > 0 .
+
+    crl [cubata-hielo] :
+	< Id1 : Noche | botellon : 
+     			(< Id2 : Bebedor | bolsa : [A,R,0], numCopas :
+	Cs > 
+   	< Id3 : Bebedor | bolsa : [A2,R2,H2] > Conf) >
+      => < Id1 : Noche | botellon : 
+     			 (< Id2 : Bebedor | bolsa :
+	[sd(A,1),sd(R,1),0], numCopas : (Cs + 1) > 
+	< Id3 : Bebedor | bolsa : [A2,R2,sd(H2,1)] > Conf) > 
+      if H2 > 0 and A > 0 and R > 0 .
+
+    crl [refresco-hielo] :
+	< Id1 : Noche | botellon : 
+     			(< Id2 : Bebedor | bolsa : [A,R,0] > 
+   	< Id3 : Bebedor | bolsa : [A2,R2,H2] > Conf) >
+      => < Id1 : Noche | botellon : 
+     			 (< Id2 : Bebedor | bolsa : [A,sd(R,1),0] > 
+	< Id3 : Bebedor | bolsa : [A2,R2,sd(H2,1)] > Conf) > 
+      if H2 > 0 and R > 0 .
+
+
+    rl [ponerseCola] :
+	< Id1 : Noche | botellon : B Conf, esperando : Cola >
+      => < Id1 : Noche | botellon : Conf, esperando : enqueue(Cola,B) > .
+     
+    crl [entrarLocal] :
+	< Id1 : Noche | esperando : ( < Id3 : Bebedor | nombre : N,
+	edad : R, numCopas : Cs, vip : V > ! Cola) , local : < Id2 : Local | aforo : A, 
+     	   	   	       	    				 bailando : Conf > >    
+      => < Id1 : Noche | esperando : Cola, 
+     	   		 local : < Id2 : Local | aforo : A, 
+		   	     	   		 bailando : (Conf < Id3 : Persona | nombre : N, edad : R, numCopas : Cs, vip : V >) > >
+      if numElem(Conf) < A /\ 
+	  P := < Id3 : Persona | nombre : N, 
+     	      			 edad : R, 
+				 numCopas : Cs, 
+				 vip : V > /\ Cs < 3 /\ R >= 18 .
+
+     crl [cubata-Local]:
+         < Id1 : Local | bailando : (Conf
+                   < Id2 : Persona | numCopas : Cs >), 
+			      refrescos : R,
+			      alcohol : A,
+			      manager : P2 >  
+      => < Id1 : Local | bailando : (Conf < Id2 : Persona | numCopas : Cs + 1 >), 
+			      refrescos : sd(R,1),
+			      alcohol : sd(A,1),
+			      manager : P2 >
+      if R > 0 /\ A > 0 /\ 
+	  P := < Id2 : Persona | numCopas : Cs > /\ Cs < 4 /\ not(P2 == P) .
+
+     crl [refresco-Local]:
+	< Id1 : Local | bailando : Conf, refrescos : R >  
+      => < Id1 : Local | bailando : Conf, refrescos : sd(R,1) >
+      if R > 0 /\ numElem(Conf) > 0 .
+
+      crl [alguien-seva]:
+      	  < Id1 : Local | bailando : (P Conf), manager : P2 > 
+      	  => < Id1 : Local | bailando : Conf, manager : P2 >  
+      if not(P2 == P) . 
+
+      crl [borracho-seva]:
+          < Id1 : Local | bailando : < Id2 : Persona | numCopas : Cs > Conf  >
+          =>  < Id1 : Local | bailando : Conf >
+      if Cs >= 4 .  
+
+     crl [devolverBotellon] :
+	< Id1 : Noche | esperando : ( < Id2 : Bebedor | edad : R,
+	numCopas : Cs > ! Cola ), botellon : Conf  >    
+      => < Id1 : Noche | esperando : Cola,  botellon : ( Conf < Id2 : Bebedor | edad : R,
+	numCopas : Cs > ) >
+     if ( Cs >= 3 or R < 18 ) . 
+
+endom)
+
+ (mod EJEMPLO is
+     pr STRING .
+     pr QID .
+     pr COLAPERSONA .
+     pr NAT .
+     pr CONFIGURATION .   
+     pr BOLSA .
+     pr PERSONA .
+     pr LOCAL .
+     pr NOCHE .
+
+    op lucas : -> Configuration .
+    eq lucas = < 'Id1 : Bebedor | nombre : "Lucas", edad : 23, numCopas
+				  : 0, vip : true, bolsa : [1,1,1] > .
+
+    op lucia : -> Configuration .
+    eq lucia = < 'Id2 : Bebedor | nombre : "Lucia", edad : 23,
+				  numCopas : 0, vip : true, bolsa : [1,1,1] > .
+
+op rocio : -> Configuration .
+eq rocio = < 'Id3 : Bebedor | nombre : "Rocio", edad : 17,
+numCopas : 0, vip : false, bolsa : [1,0,1] > .
+
+op raul : -> Configuration .
+eq raul = < 'Id6 : Bebedor | nombre : "Raul", edad : 23,
+numCopas : 0, vip : false, bolsa : [0,1,1] > .
+
+op carlos : -> Configuration .
+eq carlos = < 'Id5 : Bebedor | nombre : "Carlos", edad : 23,
+numCopas : 0, vip : false, bolsa : [1,1,0] > .
+
+op ana : -> Configuration .
+eq ana = < 'Id4 : Bebedor | nombre : "Ana", edad : 19,
+numCopas : 0, vip : false, bolsa : [1,1,0] > .
+
+op dabi : -> Configuration .
+eq dabi = < 'Id7 : Persona | nombre : "Dabi", edad : 23,
+numCopas : 0, vip : false > .
+
+op local0 : -> Configuration .
+eq local0 = <  'Id0 : Local | aforo : 5, bailando : dabi, alcohol : 6,
+refrescos : 5, manager : dabi > .
+
+op botellon0 : -> Configuration .
+eq botellon0 = ana lucia .
+
+op noche0 : -> Configuration .
+eq noche0 = < 'Id8 : Noche | botellon : botellon0, 
+   	      	     	     esperando : cv,
+			     local : local0 > .
+
+endm)
+
+
+
+(mod PROPS is
+     pr STRING .
+     pr NOCHE .
+     pr SATISFACTION .
+     pr CONFIGURATION .
+     pr QID .
+     pr LOCAL .
+     pr PERSONA .
+     pr BOLSA .
+     
+     subsort Configuration < State .
+     
+     vars Id1 Id2 Id3 : Oid .
+     vars A R H : Nat .
+     vars Att Att2 Att3 : AttributeSet .
+     var Name : String .
+     vars Cola Cola2 : ColaPersona .
+     var Conf : Configuration . 
+
+     op hayAlcohol : -> Prop .
+     eq < Id1 : Noche | local : < Id2 : Local | alcohol : A, Att >, Att2 > |=
+     hayAlcohol = A > 0 .
+
+     op hayRefrescos : -> Prop .
+     eq < Id1 : Noche | local : < Id2 : Local | refrescos : A, Att >, Att2 > |=
+     hayRefrescos = A > 0 .
+
+      op estaEnCola : String -> Prop .
+      eq < Id1 : Noche | esperando : Cola, Att > |= estaEnCola(Name) = buscar(Cola,Name) .
+
+     op estaEnLocal : String -> Prop .
+     eq < Id2 : Noche | local : < Id1 : Local | bailando : ( < Id3 : Persona | nombre : Name,
+      Att2 > Conf ), Att >, Att3 > |= estaEnLocal(Name) = true .
+     eq < Id2 : Noche | local : < Id1 : Local | Att >, Att2 > |= estaEnLocal(Name) = false [owise]. 
+     
+      op aforoInferior : Nat -> Prop .
+      eq < Id2 : Noche | local : < Id1 : Local | bailando : Conf, Att >,
+      Att2 > |= aforoInferior(A) =
+      numElem(Conf) <= A .  
+     
+     op demasiadasCopas : -> Prop .
+     ceq < Id1 : Noche | botellon : < Id2 : Bebedor | numCopas : A,
+     Att > Conf,  Att2 > |= demasiadasCopas = true 
+     if A >= 3 .    
+
+     ceq < Id1 : Noche | esperando : Cola ! < Id2 : Bebedor | numCopas : A,
+     Att > ! Cola2,  Att2 > |= demasiadasCopas = true 
+     if A >= 3 .    
+
+     ceq < Id1 : Noche | local : < Id2 : Local | bailando : (< Id3 :
+     Persona | numCopas : A, Att3 > Conf ),
+     Att >, Att2 > |= demasiadasCopas = true 
+     if A >= 4 .
+
+     eq < Id1 : Noche | Att > |= demasiadasCopas = false [owise] .
+
+     op hayHieloBot : -> Prop .
+     eq < Id1 : Noche | botellon : < Id2 : Bebedor | bolsa : [A,R,H],
+     Att > Conf,  Att2 > |= hayHieloBot = H > 0 .    
+
+     op hayRefrescoBot : -> Prop .
+     eq < Id1 : Noche | botellon : < Id2 : Bebedor | bolsa : [A,R,H],
+     Att > Conf,  Att2 > |= hayRefrescoBot = R > 0 .    
+
+     op hayAlcoholBot : -> Prop .
+     eq < Id1 : Noche | botellon : < Id2 : Bebedor | bolsa : [A,R,H],
+     Att > Conf,  Att2 > |= hayAlcoholBot = A > 0 .    
+
+endm )
+
+
+(mod CHECK  is 
+    pr PROPS .
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER . 
+    pr EJEMPLO .
+    pr CONFIGURATION .
+
+*** 1. ( red modelCheck(noche0, ([] estaEnLocal("Dabi"))) . )
+*** Tarda mucho, pero reduciendo el numero de personas en el botellon
+*** termina correctamente.
+
+*** 2. ( red modelCheck(noche0, ( aforoInferior(5) -> [] aforoInferior(5))) . )
+*** Tarda mucho pero si reducimos el numero de personas del botellon a
+*** 2, entonces termina correctamente.
+
+*** 3. ( red modelCheck(noche0, ( <> estaEnCola("Rocio") -> <> estaEnLocal("Rocio"))) .)
+*** Como contraejemplo, se meustra a Rocio poniendose en la cola, y
+*** siendo devuelta al botellon.
+
+*** 4. ( red modelCheck(noche0, ([] (hayAlcohol \/ hayAlcoholBot ) )) . )
+*** Tarda mucho, pero reduciendo el numero de personas en el botellon,
+*** termina correctamente.
+
+*** 5. ( red modelCheck(noche0, [] (<> (hayRefrescos \/
+*** hayRefrescoBot) -> <> (~ (hayRefrescos \/ hayRefrescoBot) ))) . )
+*** Tarda mucho, pero reduciendo el numero de personas en el botellon,
+*** termina correctamente.
+
+*** 6. ( red modelCheck(noche0, [](<> demasiadasCopas -> [] demasiadasCopas) ) . )
+*** Lucas consume toda la bebida del local, pero luego lo echan, de forma
+*** que no queda nadie con demasiadasCopas.
+
+*** 7. ( red modelCheck(noche0 , [] ( <> (hayHieloBot /\ hayAlcoholBot /\
+*** hayRefrescoBot ) ->  <> demasiadasCopas)) . )
+*** Devuelve un contraejemplo en el que en el botellon nadie bebe y se
+*** pone a la cola directamente, dentro del local, las dos primeras
+*** personas beben 3 copas, quedandose en el limite de estar borracho
+*** y consumiendo todos los refrescos disponibles. Por eso nadie toma
+*** demasiadas copas.
+
+endm)

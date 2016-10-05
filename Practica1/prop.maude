@@ -1,0 +1,91 @@
+
+(mod PROPS is 
+    pr STRING .
+    pr NAT .
+    pr SATISFACTION .
+    pr CANAL .
+    pr NODO .
+    pr PROCESO .
+    pr CONFIGURATION .
+    pr QID .
+    pr MENSAJE .
+    pr TABLE .
+    
+    ***Ejercicio 22
+    subsort Configuration < State .
+
+    op nodoExiste : String -> Prop .
+    op amigos : Qid -> Prop .
+    op mensaje : String -> Prop .
+    op numNodos : Nat -> Prop .
+    op numExtremos : Nat -> Prop .
+    op canal : Oid -> Prop .
+    op mensajeExiste : Msg -> Prop .
+    op sonAmigos : String String -> Prop .
+    op from_to_ : String String -> Prop .
+
+
+    vars Id Id1 Id2 Id3 : Qid .
+    vars C C1 C2 : Configuration .
+    vars Canal1 N1 N2 : Oid .
+    vars A B IP IP2 : String .
+    vars Attr Attr2 Attr3 : AttributeSet .
+    vars RestAmigos RestAmigos2 : CjtoStr .
+    var Tab : Table .
+    var M1 : Msg . 
+    vars Ms1 Ms2 : Listamsg .
+    var N : Nat . 
+    
+    ***Ejercicio 23
+    op cuentaNodos : Configuration -> Nat .
+    eq cuentaNodos(< Id : Proceso | datos : < n(Id) : Centro | Attr > C1 > C) = 1 + cuentaNodos(C) .
+    eq cuentaNodos(< Id : Proceso | datos : < n(Id) : Extremo | Attr > C1 > C) = 1 + cuentaNodos(C) .
+    eq cuentaNodos(C) = 0 [owise] .
+
+    op cuentaExtremos : Configuration -> Nat .
+    eq cuentaExtremos(< Id : Proceso | datos : < n(Id) : Extremo | Attr > C1 > C) = 1 + cuentaExtremos(C) .
+    eq cuentaExtremos(C) = 0 [owise] . 
+    
+    eq < Id1 : Proceso | datos : < n(Id) : Nodo | dirIP : IP, Attr > C1 > C |= nodoExiste(IP) = true .
+    eq < Id1 : Proceso | datos : < n(Id) : Nodo | amigos : IP RestAmigos, Attr > C1 > < Id1 : Proceso | datos : < n(Id1) : Nodo | dirIP : IP, Attr2 > C2 > C |= amigos(n(Id1)) = true . 
+    
+   ceq < Id1 : Canal | listaOrigen : (Ms1 M1 Ms2) , table : Tab , Attr > C |= mensaje(IP) = true 
+    if  N1 := getDestinatario(M1) /\ buscar(Tab,IP) == N1 .
+
+    ceq < Id1 : Canal | listaDestino : (Ms1 M1 Ms2) , table : Tab , Attr > C |= mensaje(IP) = true 
+    if N1 := getDestinatario(M1)  /\ buscar(Tab,IP) == N1 . 
+
+    eq C |= numNodos(N) = cuentaNodos (C) == N .
+
+    eq C |= numExtremos(N) = cuentaExtremos (C) == N .
+
+    eq < Canal1 : Canal | estado : ok , Attr > C |= canal(Canal1) = true .
+
+    eq < Id : Proceso | datos : M1 C1 > C |= mensajeExiste(M1) = true .
+ 
+    eq < Id : Proceso | datos : < n(Id) : Nodo | dirIP : IP, amigos : IP2 RestAmigos, Attr > C1 > < Id1 : Proceso | datos : < n(Id1) : Nodo | dirIP : IP2, amigos : IP RestAmigos2, Attr2 > C2 > C |= sonAmigos(IP,IP2) = true .
+    
+    eq < Id1 : Proceso | datos : < n(Id1) : Nodo | dirIP : A, Attr > C1 > < Id2 : Proceso | datos : < n(Id2) : Nodo | dirIP : B, Attr2 > C2 > < Canal1 : Canal | origen : Id1, destino : Id2, listaDestino : Ms1 M1 Ms2, Attr3 > C |= from A to B = true .
+    
+endm )
+
+
+(mod CHECK  is 
+    pr PROPS .
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER . 
+    pr NAT .
+    pr STRING . 
+    pr EJEMPLO .
+    pr CONFIGURATION .
+  
+    
+  ***Ejercicio 24
+
+  *** Si se ejecuta con el Ejemplo2 y, por tanto, con numNodos(3) el model-checking de la primera propiedad se ejecuta en un periodo de tiempo razoable.
+  ***  red modelCheck(Ejemplo2, ((<> numNodos(N)) -> ([] numNodos(N))) ) . 
+***    red modelCkeck(Ejemplo1, [] (nodoExiste(A) /\ sonAmigos(A,B) -> <> fromAtoB)) .
+***    red modelCheck(Ejemplo1, [] (mensajeExiste(M) -> <> ( ¬mensajeExiste(M)))) .
+
+endm)
+

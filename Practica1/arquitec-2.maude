@@ -1,0 +1,342 @@
+load model-checker
+
+***Ejercicio 2
+fmod ESTADO is
+    sort Estado .
+    
+    op inactivo : -> Estado [ctor] .
+    op esperando : -> Estado [ctor] .
+    op activo : -> Estado [ctor] .
+    op saludado : -> Estado [ctor] .
+endfm
+
+mod LISTAMSG is
+   pr CONFIGURATION .
+   sort Listamsg .
+   subsort Msg < Listamsg .
+   op lv : -> Listamsg [ctor] .
+   op _;_ : Listamsg Listamsg -> Listamsg [ctor assoc id: lv] .
+
+endm
+
+***Ejercicio 9
+fmod CJTOSTRING is
+    pr STRING .
+    
+    sort CjtoStr . 
+    subsort String < CjtoStr .
+     
+    op vacio : -> CjtoStr [ctor] .
+    op __ : CjtoStr CjtoStr -> CjtoStr [ctor comm assoc id: vacio] .
+      
+endfm
+
+***Ejercicio 3
+mod TABLE is
+   pr CONFIGURATION .
+   pr STRING .
+   
+   sort Table .
+   sort Elem .
+   subsort Elem < Table .
+
+   op (_,_) : String Oid -> Elem [ctor] .
+   op tv : -> Table [ctor] .
+   op __ : Table Table -> Table [ctor assoc id: tv] .
+   var T : Table .
+   vars Ip Ip2 : String .
+   vars Id Id2 : Oid .
+
+   op insertar : Table Elem -> Table .
+   eq insertar(tv,(Ip,Id)) = (Ip,Id) .
+   ceq insertar((Ip,Id) T,(Ip2,Id2)) = ((Ip,Id2) T) 
+       if Ip == Ip2 .
+   ceq insertar(((Ip,Id) T),(Ip2,Id2)) = (Ip,Id) insertar(T,(Ip2,Id2)) 
+       if Ip =/= Ip2 .
+
+   op eliminar : Table String -> Table .
+   eq eliminar(tv,Ip) = tv .
+   ceq eliminar((Ip,Id) T,Ip2) = T 
+       if Ip == Ip2 .
+   ceq eliminar((Ip,Id) T,Ip2) = (Ip,Id) eliminar(T,Ip2) 
+       if Ip =/= Ip2 .
+
+   op buscar : Table String -> Oid .
+   
+   eq buscar((Ip,Id) T,Ip) = Id .
+   ceq buscar((Ip, Id) T, Ip2) = buscar(T,Ip2)
+       if Ip =/= Ip2 .
+ 
+   op contains : Table String -> Bool .
+   eq contains(tv,Ip) = false .
+   eq contains((Ip,Id) T, Ip) = true .
+   ceq contains((Ip,Id) T, Ip2) = contains(T,Ip2)
+    if Ip =/= Ip2 .
+endm
+
+***Ejercicio 5
+fmod ESTADOCANAL is 
+   sort EstadoCanal .
+   op ok : -> EstadoCanal [ctor] .
+   op error : -> EstadoCanal [ctor] .
+
+endfm
+
+load full-maude
+
+***Ejercicio 1
+(omod PROCESO is
+    pr CONFIGURATION .
+    pr QID .
+    
+
+    class Proceso | datos : Configuration .
+endom)
+
+***Ejercicio 2,4,10,11
+(omod NODO is
+    pr ESTADO .
+    pr TABLE .
+    pr STRING .
+    pr CJTOSTRING .
+    pr QID .
+    pr CONFIGURATION .
+   
+   
+   
+    class Nodo | dirIP : String, estado : Estado, recibido : CjtoStr,
+    amigos : CjtoStr .
+   
+    class Centro | table : Table .
+
+   
+    class Extremo | centro : Oid .
+    subclass Centro < Nodo .
+    subclass Extremo < Nodo .
+
+    op null : -> Oid [ctor] .
+    op n : Qid -> Oid [ctor] .
+    
+   
+endom)
+
+***Ejercicio 5
+(omod CANAL is
+    pr NODO .
+    pr ESTADOCANAL .
+    pr LISTAMSG .
+    pr QID .
+    subsort Qid < Oid .
+   
+   
+class Canal | origen : Qid, destino : Qid,
+                 listaOrigen : Listamsg, listaDestino : Listamsg,
+                 estado : EstadoCanal . 
+
+   
+endom)
+
+(mod MENSAJE is
+   pr CONFIGURATION .
+   pr NODO .
+   pr PROCESO .
+   pr CANAL .
+   pr QID .
+   pr NAT .
+
+
+    subsort Qid < Oid .
+   msg info : String Oid -> Msg .
+   msg respuesta-info : Oid Oid -> Msg .
+   
+   ***Ejercicio 12
+   msg to_:_ : String String -> Msg .
+   
+   ***Ejercicio 13
+   msg to_:_ : Oid String -> Msg .
+
+    vars S S1 S2 IP : String .
+    vars Id1 Id2 Id3 : Oid .
+    vars QId1 QId2 QId3 : Qid .
+    var Est : Estado .
+    var Tab : Table .
+    vars N1 N2 : Nodo .
+    vars E1 E2 : Extremo .
+    vars C1 C2 : Configuration .
+    vars LMs1 LMs2 LMs3 LMs4 : Listamsg .
+    vars M1 M2 : Msg .
+    vars Amis Cadena : CjtoStr .
+ 
+
+    ***Ejercicio 14
+    op getDestinatario : Msg -> Oid .
+    eq getDestinatario(to Id1 : S1) = Id1 .
+    eq getDestinatario(respuesta-info(Id1,Id2)) = Id1 .
+
+    crl [send-message1] :
+	< QId1 : Proceso | datos : C1 M1 >
+	< Id2 : Canal | origen : QId1, listaDestino : LMs3, estado : ok >
+      => 
+	< QId1 : Proceso | datos : C1 >
+	< Id2 : Canal | origen : QId1, listaDestino : LMs3 ; M1 , estado : ok >
+      if getDestinatario(M1)  =/= n(QId1) .
+    
+    crl [send-message2] :
+	< QId1 : Proceso | datos : C1 M1 >
+	< Id2 : Canal | origen : QId3, destino : QId1, listaOrigen : LMs3, estado : ok >
+      => 
+	< QId1 : Proceso | datos : C1 >
+	< Id2 : Canal | destino : QId1, listaOrigen : LMs3 ; M1 , estado : ok >
+      if getDestinatario(M1) == n(QId3) .
+
+    rl [send-messageInfo1] :
+	< QId1 : Proceso | datos : C1 info(IP,n(QId1)) >
+	< Id2 : Canal | origen : QId1, destino : QId2, estado : ok >
+	< QId2 : Proceso | datos : C2 >
+      => 
+	< QId1 : Proceso | datos : C1 >
+	< Id2 : Canal | origen : QId1, destino : QId2, estado : ok >
+	< QId2 : Proceso | datos : C2 info(IP,n(QId1)) > .
+
+     crl [receive-message1] :
+	< QId1 : Proceso | datos : C1 >
+	< Id2 : Canal | origen : QId1, listaOrigen : M1 ; LMs3 , estado : ok >
+      => 
+	< QId1 : Proceso | datos : C1 M1 >
+	< Id2 : Canal | origen : QId1, listaOrigen : LMs3, estado : ok > 
+      if getDestinatario(M1) == n(QId1) .
+
+     rl [receive-message2] :
+	< QId1 : Proceso | datos : C1 >
+	< Id2 : Canal | destino : QId1, listaDestino : M1 ; LMs3 , estado : ok >
+      => 
+	< QId1 : Proceso | datos : C1 M1 >
+	< Id2 : Canal | destino : QId1, listaDestino : LMs3, estado : ok > .  
+***Ejercicio 6
+    rl [send-info] : 
+	< Id2 : Extremo | dirIP : IP, estado : inactivo >
+      => 
+	< Id2 : Extremo | dirIP : IP, estado : esperando > 
+	info(IP,Id2) . 
+
+    rl [receive-info] : 
+	info(S,Id1)
+	< Id2 : Centro | dirIP : IP, estado : inactivo, table : Tab >
+      => 
+	< Id2 : Centro | dirIP : IP, estado : activo, 
+			 table : insertar(Tab,(S,Id1)) > 
+	respuesta-info(Id1,Id2) .
+
+    op puedeEnviar : Estado -> Bool .
+    eq puedeEnviar(activo) = true .
+    eq puedeEnviar(saludado) = true .
+    eq puedeEnviar(Est) = false [owise] .
+
+    crl [receive-info] :
+    	info(S,Id1)
+	< Id2 : Centro | dirIP : IP, estado : Est, table : Tab >
+      => 
+	< Id2 : Centro | dirIP : IP, estado : Est,
+			 table : insertar(Tab,(S,Id1)) > 
+	respuesta-info(Id1,Id2) if puedeEnviar(Est) .
+
+    ***Ejercicio 7
+    rl [receive-respuesta-info] : 
+	respuesta-info(Id1,Id2)
+	< Id1 : Extremo | dirIP : S, estado : esperando, centro : null > 
+      => 
+	< Id1 : Extremo | dirIP : S, estado : activo, centro : Id2 > .
+
+    ***Ejercicio 17,18
+    crl [1to2-1] :
+	(to S : S1)
+	< Id1 : Centro | dirIP : IP, table : Tab >
+      =>
+	< Id1 : Centro | dirIP : IP, table : Tab >
+	(to buscar(Tab,S) : S1 )
+      if (S =/= IP) and contains(Tab,S) .
+
+   crl [1to2-2] :
+	(to S : S2)
+	< Id1 : Nodo | dirIP : IP, recibido : Cadena >
+      =>
+	< Id1 : Nodo | dirIP : IP, recibido : Cadena S2 >
+      if (S == IP) .
+
+   rl [1to2-3] :
+	(to Id1 : S2)
+	< Id1 : Nodo | dirIP : IP, recibido : Cadena >
+      =>
+	< Id1 : Nodo | dirIP : IP, recibido : Cadena S2 > .
+   
+   ***Ejercicio 16
+   op saludarAmigos : CjtoStr -> Configuration .
+   eq saludarAmigos(vacio) = none .
+   eq saludarAmigos(S Amis) = (to S : "hola") saludarAmigos(Amis) .
+
+   crl [saludarAmigos] :
+       < Id1 : Nodo | estado : activo, amigos : Amis >
+       => < Id1 : Nodo | estado : saludado, amigos : Amis >
+       saludarAmigos(Amis)
+    if Amis =/= vacio .
+
+    ***Ejercicio 15
+     rl [error] :
+	< Id1 : Canal | estado : ok > 
+      => 
+	< Id1 : Canal | estado : error > . 
+    
+    ***Ejercicio 19
+    op numObjetos : Configuration -> Nat .
+    eq numObjetos (< QId1 : Proceso | datos : C2 > C1) = 2 + numObjetos(C1) .
+    eq numObjetos (< Id1 : Canal | estado : ok, origen : Id2, destino : Id3, listaOrigen : LMs1, listaDestino : LMs2 > C1) = 1 + numObjetos(C1) .
+    eq numObjetos (C1) = 0 [owise] .
+
+endm)
+
+
+
+(mod EJEMPLO is
+    pr PROCESO . 
+    pr CANAL .
+    pr MENSAJE .
+    pr NODO .
+    pr CONFIGURATION .
+   
+    
+
+    ops Canal1  Canal2 Canal3 : -> Oid .
+    op Ejemplo1 : -> Configuration .
+    op Ejemplo0 : -> Configuration .
+    op Ejemplo2 : -> Configuration .
+
+    ***Ejercicio 8
+    eq Ejemplo0 = < n('Id1) : Centro | dirIP : "1",estado : inactivo, table : tv, recibido : "", amigos : vacio >
+	< n('Id2) : Extremo | dirIP : "2", centro : null, estado : inactivo,  recibido : "", amigos : vacio > 
+	< n('Id3) : Extremo | dirIP : "3", centro : null, estado : inactivo,  recibido : "", amigos : vacio > 
+	< n('Id4) : Extremo | dirIP : "4", centro : null, estado : inactivo,  recibido : "", amigos : vacio > .
+    
+   ***Ejercicio 20
+    eq Ejemplo1 =  < 'Id1 : Proceso | datos : < n('Id1) : Centro | dirIP : "1",estado : inactivo, table : tv, recibido : vacio, amigos : "2" "4" > >
+	< 'Id2 : Proceso | datos : < n('Id2) : Extremo | dirIP : "2", centro : null, estado : inactivo,  recibido : vacio, amigos : "3" "1" >  >
+	< 'Id3 : Proceso | datos : < n('Id3) : Extremo | dirIP : "3",
+	centro : null, estado : inactivo,  recibido : vacio, amigos : "2" "4" >  >
+	< 'Id4 : Proceso | datos : < n('Id4) : Extremo | dirIP : "4",
+	centro : null, estado : inactivo,  recibido : vacio, amigos : "3"
+	"1" > >
+	< Canal1 : Canal | origen : 'Id2, destino : 'Id1, estado : ok, listaDestino : lv, listaOrigen : lv >
+	< Canal2 : Canal | origen : 'Id3, destino : 'Id1, estado : ok, listaDestino : lv, listaOrigen : lv >
+	< Canal3 : Canal | origen : 'Id4, destino : 'Id1, estado : ok, listaDestino : lv, listaOrigen : lv > .
+
+***Ejercicio 21
+***( search Ejemplo1 =>* C:Configuration such that numObjetos(Ejemplo1) =/= numObjetos(C:Configuration) . )
+
+    eq Ejemplo2 =  < 'Id1 : Proceso | datos : < n('Id1) : Centro | dirIP : "1",estado : inactivo, table : tv, recibido : vacio, amigos : "2" "3" > >
+	< 'Id2 : Proceso | datos : < n('Id2) : Extremo | dirIP : "2", centro : null, estado : inactivo,  recibido : vacio, amigos : "3" "1" >  >
+	< 'Id3 : Proceso | datos : < n('Id3) : Extremo | dirIP : "3",
+	centro : null, estado : inactivo,  recibido : vacio, amigos : "2" "3" >  >
+	
+	< Canal1 : Canal | origen : 'Id2, destino : 'Id1, estado : ok, listaDestino : lv, listaOrigen : lv >
+	< Canal2 : Canal | origen : 'Id3, destino : 'Id1, estado : ok, listaDestino : lv, listaOrigen : lv > . 
+
+endm)
